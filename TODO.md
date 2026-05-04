@@ -32,10 +32,10 @@
 - [ ] Audit sécurité : vérifier que tous les secrets sont renforcés.
 
 ## Phase 6 : Multimodalité via LangGraph
+- [x] Créer le service `multimodal-api` (Dockerfile, requirements, main.py).
+- [x] Implémenter le workflow LangGraph : texte → Mistral-7B (GPU), image → Qwen2-VL (CPU) → réponse unifiée.
+- [x] Exposer le modèle multimodal via LiteLLM comme `multimodal-agent`.
 - [ ] Déployer Qwen2-VL-2B-Instruct sur CPU (32 Go RAM) pour Vision.
-- [ ] Créer le service `multimodal-api` (orchestrateur LangGraph).
-- [ ] Implémenter le workflow : texte → Mistral-7B (GPU), image → Qwen2-VL (CPU) → réponse unifiée.
-- [ ] Exposer le modèle multimodal via LiteLLM comme `multimodal-agent`.
 - [ ] Tester end-to-end : upload image + prompt texte dans Open WebUI.
 
 ## Phase 7 : Capacités Avancées (CPU)

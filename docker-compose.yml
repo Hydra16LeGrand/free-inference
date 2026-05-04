@@ -63,7 +63,36 @@ services:
       retries: 10
       start_period: 300s
 
-  # --- 3. LiteLLM Proxy ---
+  # --- 3. Multimodal API (LangGraph Orchestrator) ---
+  multimodal-api:
+    build:
+      context: ./multimodal-api
+      dockerfile: Dockerfile
+    container_name: inference-multimodal-api
+    restart: unless-stopped
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      VLLM_URL: http://vllm:8000/v1/chat/completions
+      VLLM_API_KEY: ${VLLM_API_KEY:-sk-vllm-local-secret}
+      TARGET_MODEL: solidrust/Mistral-7B-Instruct-v0.3-AWQ
+      VISION_MODEL: Qwen/Qwen2-VL-2B-Instruct
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    ports:
+      - "8001:8000"
+    networks:
+      - inference-net
+    depends_on:
+      vllm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+  # --- 4. LiteLLM Proxy ---
   litellm:
     image: ghcr.io/berriai/litellm:v1.83.7-stable
     container_name: inference-litellm

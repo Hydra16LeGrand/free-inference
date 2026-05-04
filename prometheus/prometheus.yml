@@ -21,3 +21,8 @@ scrape_configs:
     metrics_path: '/metrics'
     static_configs:
       - targets: ['litellm:4000']
+
+  - job_name: 'multimodal-api'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['multimodal-api:8000']

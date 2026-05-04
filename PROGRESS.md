@@ -99,4 +99,24 @@
 - 15 fichiers commités (architecture complète, benchmarks, docs).
 - Branche `main` poussée avec succès.
 
-**Prochaine étape :** Phase 6 (Multimodal LangGraph) comme demandé.
+## 2026-05-04 : Phase 6 - Implémentation Multimodal API
+
+**Décision :** LangGraph introduit dès le MVP pour préparer STT et embeddings (Phase 7).
+
+**Fichiers créés :**
+- `multimodal-api/Dockerfile` : image Python 3.11 slim, torch CPU-only.
+- `multimodal-api/requirements.txt` : transformers, qwen-vl-utils, langgraph, fastapi, httpx, pillow.
+- `multimodal-api/main.py` : FastAPI + LangGraph StateGraph avec nœuds `classify`, `process_vision`, `build_prompt`, `call_llm`.
+
+**Fichiers modifiés :**
+- `docker-compose.yml` : service `multimodal-api` ajouté (port 8001, CPU-only, dépend de vLLM).
+- `litellm/config.yaml` : modèle `multimodal-agent` routé vers `http://multimodal-api:8000/v1`.
+- `prometheus/prometheus.yml` : scrape job `multimodal-api` ajouté.
+
+**Architecture du graphe :**
+1. `classify` : détecte `image_url` ou texte pur dans le dernier message utilisateur.
+2. `process_vision` (conditionnel) : appel Qwen2-VL-2B sur CPU via `run_in_executor`, max 256 tokens.
+3. `build_prompt` : injecte l'analyse vision dans le dernier message user, préserve l'historique conversation.
+4. `call_llm` : proxy vers Mistral-7B sur GPU (vLLM), supporte streaming et non-streaming.
+
+**Prochaine étape :** Build du conteneur, test de chargement Qwen2-VL, validation end-to-end.

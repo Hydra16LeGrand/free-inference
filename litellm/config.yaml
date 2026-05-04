@@ -8,6 +8,11 @@ model_list:
       model: hosted_vllm/solidrust/Mistral-7B-Instruct-v0.3-AWQ
       api_base: http://vllm:8000/v1
       api_key: os.environ/VLLM_API_KEY
+  - model_name: multimodal-agent
+    litellm_params:
+      model: openai/multimodal-agent
+      api_base: http://multimodal-api:8000/v1
+      api_key: os.environ/VLLM_API_KEY
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY

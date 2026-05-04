@@ -1,0 +1,12 @@
+torch --index-url https://download.pytorch.org/whl/cpu
+transformers>=4.40.0
+accelerate
+qwen-vl-utils
+langgraph>=0.2.0
+langchain-core
+fastapi>=0.110.0
+uvicorn[standard]
+httpx
+pillow
+prometheus-fastapi-instrumentator
+python-multipart
