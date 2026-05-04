@@ -92,4 +92,11 @@
 - ngrok configuré, en attente de token et démarrage.
 - Mistral-7B : opérationnel, benchmarké, qualité validée (français natif acceptable).
 
-**Prochaine étape :** Phase 5 (ngrok + sécurisation) ou Phase 6 (Multimodal LangGraph). **Décision utilisateur requise.**
+## 2026-05-04 : Commit Initial sur GitHub
+
+**Action :** Initialisation du dépôt Git et push sur `https://github.com/Hydra16LeGrand/ivorian_inference.git`.
+- `.gitignore` créé : exclut `.claude/`, `.env`, `venv/`.
+- 15 fichiers commités (architecture complète, benchmarks, docs).
+- Branche `main` poussée avec succès.
+
+**Prochaine étape :** Phase 6 (Multimodal LangGraph) comme demandé.
