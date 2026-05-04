@@ -1,0 +1,185 @@
+services:
+  # --- 1. Base de Données PostgreSQL ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: inference-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-litellm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-litellm_password}
+      POSTGRES_DB: ${POSTGRES_DB:-litellm}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    networks:
+      - inference-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-litellm} -d ${POSTGRES_DB:-litellm}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- 2. vLLM (Inference Engine) ---
+  vllm:
+    build:
+      context: ./vllm
+      dockerfile: Dockerfile
+    container_name: inference-vllm
+    restart: unless-stopped
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      VLLM_API_KEY: ${VLLM_API_KEY:-sk-vllm-local-secret}
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+      - ./vllm/configs:/configs
+    ports:
+      - "8000:8000"
+    networks:
+      - inference-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Commande de lancement optimisée pour 12 Go VRAM avec pull HuggingFace
+    command: >
+      --model solidrust/Mistral-7B-Instruct-v0.3-AWQ
+      --quantization awq
+      --max-model-len 8192
+      --gpu-memory-utilization 0.90
+      --tensor-parallel-size 1
+      --dtype half
+      --enforce-eager
+      --enable-prefix-caching
+      --api-key ${VLLM_API_KEY:-sk-vllm-local-secret}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+
+  # --- 3. LiteLLM Proxy ---
+  litellm:
+    image: ghcr.io/berriai/litellm:v1.83.7-stable
+    container_name: inference-litellm
+    restart: unless-stopped
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-litellm-master-secret}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY:-sk-litellm-salt-secret}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-litellm}:${POSTGRES_PASSWORD:-litellm_password}@postgres:5432/${POSTGRES_DB:-litellm}
+      VLLM_API_KEY: ${VLLM_API_KEY:-sk-vllm-local-secret}
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml
+    ports:
+      - "4000:4000"
+    networks:
+      - inference-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vllm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+
+  # --- 4. Open WebUI ---
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.8.12
+    container_name: inference-webui
+    restart: unless-stopped
+    environment:
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:-webui-secret-key-change-me}
+      OPENAI_API_BASE_URL: http://litellm:4000
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY:-sk-litellm-master-secret}
+      AIOHTTP_CLIENT_TIMEOUT: 360
+      HF_TOKEN: ${HF_TOKEN:-}
+      RAG_EMBEDDING_ENGINE: ""
+      RAG_EMBEDDING_MODEL: ""
+    volumes:
+      - open_webui_data:/app/backend/data
+    ports:
+      - "3000:8080"
+    networks:
+      - inference-net
+    depends_on:
+      litellm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+
+  # --- 5. Ngrok (Tunnel Sécurisé) ---
+  ngrok:
+    image: ngrok/ngrok:3.37.3-alpine
+    container_name: inference-ngrok
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        EXTRA=""
+        [ -n "$${NGROK_DOMAIN}" ] && EXTRA="$${EXTRA} --domain=$${NGROK_DOMAIN}"
+        [ -n "$${NGROK_BASIC_AUTH}" ] && EXTRA="$${EXTRA} --basic-auth=$${NGROK_BASIC_AUTH}"
+        exec ngrok http open-webui:8080 $${EXTRA}
+    networks:
+      - inference-net
+    depends_on:
+      open-webui:
+        condition: service_healthy
+
+  # --- 6. Prometheus ---
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: inference-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - inference-net
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+  # --- 7. Grafana ---
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: inference-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3100:3000"
+    networks:
+      - inference-net
+
+volumes:
+  postgres_data:
+  open_webui_data:
+  hf_cache:
+  grafana_data:
+
+networks:
+  inference-net:
+    driver: bridge

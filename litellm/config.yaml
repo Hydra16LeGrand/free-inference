@@ -1,0 +1,23 @@
+# LiteLLM Proxy Configuration v1.83.7-stable
+# Role: Gateway between clients (Open WebUI) and the vLLM inference engine.
+# Database: PostgreSQL 16 (auto-migrated via Prisma on first boot).
+
+model_list:
+  - model_name: solidrust/Mistral-7B-Instruct-v0.3-AWQ
+    litellm_params:
+      model: hosted_vllm/solidrust/Mistral-7B-Instruct-v0.3-AWQ
+      api_base: http://vllm:8000/v1
+      api_key: os.environ/VLLM_API_KEY
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  proxy_batch_write_at: 1
+  store_model_in_db: false
+  allow_user_auth: false
+
+litellm_settings:
+  request_timeout: 600
+  num_retries: 3
+  set_verbose: false
+  log_level: INFO

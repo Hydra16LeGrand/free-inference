@@ -1,0 +1,27 @@
+# Environnements virtuels
+venv/
+env/
+
+# Fichiers de secrets
+.env
+
+# Fichiers Claude
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
