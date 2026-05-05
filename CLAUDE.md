@@ -34,6 +34,10 @@ Tu délégues les tâches via `/agents` aux entités suivantes :
 2. **litellm-billing-guardian :** Configuration de LiteLLM, schéma Postgres, logs de consommation, intégration LangGraph.
 3. **ai-gateway-deployer :** Intégration Open WebUI, tunnel ngrok, sécurité périmétrique, déploiement services CPU.
 
+# Protocole d'Exécution (Docker & Modèles)
+- **Ne jamais exécuter** directement les commandes Docker longues (`docker build`, `docker compose up --build`, pull de modèle HF, téléchargement de checkpoints). Ces opérations consomment le contexte de conversation et bloquent l'interaction.
+- **Toujours fournir la commande** à l'utilisateur pour qu'il l'exécute manuellement dans son terminal, puis demander le retour (logs, erreurs, résultat).
+
 # Gestion des Tâches et État
 1. **Fichier TODO.md :** Tu dois créer et maintenir un fichier `TODO.md` à la racine. Chaque étape importante doit être listée avec une case à cocher. Mets-le à jour après chaque action significative.
 2. **Fichier PROGRESS.md :** Journal de bord narratif des décisions prises et des blocages.
