@@ -1,122 +1,69 @@
-# Journal de Projet - Inference Stack
+# Journal de Bord - Inference Stack
 
-## 2026-05-02 : Initialisation du Projet
+## 2026-05-10 — Phase 6.5 : Validation Finale 19/19 Qualité API
 
-**Décision :** Création de l'architecture de base et du plan de déploiement. Le projet vise un prototype local robuste (12 Go VRAM, 32 Go RAM).
-**Architecture validée :** vLLM + LiteLLM + PostgreSQL + Open WebUI + Prometheus + Grafana + ngrok.
-**Livrables créés :**
-- `TODO.md` : Plan de travail structuré en 8 phases.
-- `docker-compose.yml` : Orchestration des 7 services.
-- `.env.example` : Template centralisé pour la gestion des secrets.
-- Structure de dossiers : `vllm/`, `postgres/`, `litellm/`, `prometheus/`, `scripts/`, `models/`, `shared/`.
+**Problème constaté :** La suite de tests `scripts/test_full_suite.py` affichait 17/19, puis 18/19, avec deux échecs persistants :
+1. `base-mind` B5 (résumé) → réponse remplacée par `"Salut."` à cause d'une détection de salutation trop laxiste.
+2. `ivoire-mind` D1 (prompt vide) → auto-présentation car le template Jinja n'avait pas d'exemple pour message vide.
 
-## 2026-05-02 : Phase 1 - Audit Infrastructure (Agent: vllm-gpu-optimizer)
+**Racine :**
+1. Le post-processor `multimodal-api/main.py` utilisait `any(w in lower_user for w in _SALUTATION_KEYWORDS)`. Le mot-clé `"hi"` matchait en sous-chaîne dans `"machine"`, `"chimique"`, etc., déclenchant à tort le raccourcissement forcé.
+2. Le template Jinja ne fournissait aucun few-shot pour un `content` vide, laissant Mistral-7B halluciner une auto-présentation par défaut.
 
-**Résultat :** Environnement GPU validé.
-- GPU : RTX 4080 Laptop (12 Go), driver 580.126.09, CUDA 13.0.
-- Config vLLM auditée : cohérente pour 12 Go VRAM.
-- **Empreinte VRAM estimée (Mistral-7B AWQ, 8192 ctx) :** ~7 Go sous tension (poids 4.1 Go + KV cache 1 Go + overhead 2 Go), laissant ~4 Go de marge.
+**Solution :**
+1. Remplacement de la détection naïve par une regex avec word-boundaries : `_SALUTATION_RE = re.compile(r"(?i)\b(salut|bonjour|coucou|hey|hello|hi)\b")`.
+2. Ajout d'un exemple vide dans le template Jinja : `Question='' -> Réponse='Je n'ai pas compris.'`.
 
-## 2026-05-02 : Phase 2 - Configuration LiteLLM & PostgreSQL (Agent: litellm-billing-guardian)
+**Résultat :** Suite complète relancée → **19/19 passés** pour `ivoire-mind` et `base-mind`. Les devs utilisant l'API LiteLLM (port 4000) ou le playground Open WebUI ont maintenant une expérience prévisible et contrôlée.
 
-**Résultat :** PostgreSQL et LiteLLM opérationnels.
-- PostgreSQL démarré sur le port hôte `5433` (fix conflit).
-- LiteLLM proxy démarré sur `localhost:4000`.
-- Chaîne vLLM → LiteLLM testée avec succès.
+## 2026-05-09 — Phase 6.5 : Correction Template Jinja (Charabia & Drift Anglais)
 
-## 2026-05-03 : Phase 3 - Intégration Open WebUI (Agent: ai-gateway-deployer)
+**Problème constaté :** `ivoire-mind` génère du charabia, `base-mind` dérive en anglais sur le playground Open WebUI.
 
-**Résultat :** Open WebUI opérationnel sur `localhost:3000`.
-- Interface accessible, compte admin créé.
-- Chaîne complète validée : User → Open WebUI → LiteLLM → vLLM → Réponse.
+**Racine :** Le template Jinja `vllm_chat_template.jinja` était truffé d'espaces et sauts de ligne hors des balises Jinja. Ces whitespaces sont rendus littéralement dans le prompt final et tokenisés comme du bruit par vLLM. Sur un prompt court le modèle compensait, sur des conversations multi-turn ou des prompts riches il déraillait complètement.
 
-## 2026-05-03 : Phase 4 - Audit Sécurité & Tunnel ngrok (Agent: ai-gateway-deployer)
+**Solution :**
+1. Réécriture du template avec `{%- ... -%}` (strip whitespace avant/après chaque bloc) pour garantir un prompt compact et conforme au format Mistral-7B-Instruct-v0.3.
+2. Création de `scripts/test_quality.py` : panel de 6 prompts (salutation, raisonnement, culture locale, refus, conversation, résumé) avec vérification automatique de charabia, drift anglais, cohérence sémantique et auto-présentation.
 
-**Corrections appliquées :**
-- ngrok : wrapper shell conditionnel pour éviter les flags vides.
-- vLLM : alignement des fallbacks secrets.
-- LiteLLM : clé `os.environ/VLLM_API_KEY` (plus de hardcoding).
-- **Dettes identifiées :** 10 fallbacks secrets, WEBUI_SECRET_KEY faible, pas de rate-limiting.
+**Commande de redémarrage nécessaire :**
+```bash
+docker compose up -d --force-recreate vllm
+```
+Puis exécuter `python scripts/test_quality.py`.
 
-## 2026-05-03 : Benchmark & Scripts
+## 2026-05-09 (suite) — Phase 6.5 : Durcissement Prompt Système & Paramètres par Défaut
 
-**Scripts créés :**
-- `scripts/benchmark_llama8b.py` : Benchmark qualité/latence/throughput.
-- `scripts/benchmark_pipeline.py` : Benchmark overhead LiteLLM Proxy.
-- `README.md` : Documentation complète.
+**Problème constaté :** Malgré le template corrigé, le modèle génère encore des réponses verbeuses, auto-présentatrices, et en français cassé (ex: "Je suis optimisé pour...", "rizosn").
 
-**Résultat benchmark Mistral-7B :**
-- Throughput : 45.3 tokens/sec
-- Latence médiane : 1.26s
-- **Jugement :** Suffisant pour chat, insuffisant pour tâches complexes. Français correct mais pas natif.
+**Analyse :** Le prompt système était formulé en négatif ("Tu ne te présentes JAMAIS"). Les LLMs, et particulièrement les modèles alignés avec RLHF, ignorent souvent les interdictions pour suivre leur comportement d'assistant "helpful" par défaut. De plus, la température par défaut (~0.7) laisse trop de liberté créative.
 
-## 2026-05-04 : Pivot Architecture - 100% Local Multimodal
+**Solution :**
+1. **Prompt système affirmatif et structuré** dans `vllm_chat_template.jinja` et `multimodal-api/main.py`. 5 règles numérotées positives : "Réponds directement", "Sois concis", "Ne dis jamais...".
+2. **`temperature: 0.2`** et **`max_tokens: 256`** forçés par défaut dans `litellm/config.yaml` (ivoire-mind) et dans `multimodal-api/main.py` (base-mind). Le client peut override, mais la baseline est stricte.
 
-**Décision :** Abandon de RunPod (budget). Architecture 100% locale avec 12 Go VRAM + 32 Go RAM.
-**Nouvelle vision :**
-- **GPU (12 Go VRAM) :** Mistral-7B-Instruct-v0.3-AWQ pour chat et génération.
-- **CPU (32 Go RAM) :** Qwen2-VL-2B-Instruct pour vision, faster-whisper pour STT, bge-m3 pour embedding.
-- **LangGraph :** Orchestrateur multimodal simulant un LLM unifié.
-- **Accessibilité :** ngrok pour exposition Internet publique.
+**Commandes de redémarrage nécessaires :**
+```bash
+docker compose up -d --force-recreate vllm litellm multimodal-api
+```
+Puis exécuter `python scripts/test_quality.py`.
 
-## 2026-05-04 : Phase 1 - Validation Finale Mistral-7B
+## 2026-05-06 — Phase 4 : Grafana Provisioning Automatique
 
-**Résultat :** Modèle Mistral-7B-Instruct-v0.3-AWQ opérationnel.
-- Cache : 3.9 Go, conteneur healthy.
-- Réponse test : "Je suis un assistant intellectuel créé par les humains pour leur fournir des informations et des services." (Français correct).
-- Latence : rapide (test direct < 2s).
-- Chaîne complète validée : User → LiteLLM (4000) → vLLM (8000) → Mistral-7B → Réponse.
+**Problème :** Grafana démarrait vide (datasource Prometheus manuel à créer, dashboard à importer à la main).
 
-## 2026-05-04 : Benchmark Mistral-7B Complet
+**Solution :** Mise en place du provisioning as-code.
 
-**Script :** `scripts/benchmark_mistral7b.py` (renommé depuis `benchmark_llama8b.py`).
-**Résultats :**
-- Throughput : **51.3 tokens/sec** (+13% vs précédent run à 45.3).
-- Latence médiane : **1.699s** (moyenne 2.539s, min 0.455s, max 5.513s).
+1. **Datasource auto-configuré :** `grafana/provisioning/datasources/prometheus.yml` pointe vers `http://prometheus:9090`.
+2. **Dashboard auto-chargé :** `grafana/provisioning/dashboards/dashboard.yml` scanne `/var/lib/grafana/dashboards` et charge `inference-stack.json` (7 panels : VRAM gauge, requêtes, throughput, latence p95, erreurs, RAM, request rate).
+3. **docker-compose.yml mis à jour :** Volumes read-only montés pour datasources, dashboards provider, et dashboards JSON. Sécurité renforcée (signup désactivé, gravatar off).
 
-**Qualité par tâche :**
-- Raisonnement : Correct (effet Rayleigh en 3 étapes), latence 5.5s.
-- Créativité : Blague en français, latence 0.9s.
-- Connaissance : Capitale = Yamoussoukro (mais mentionne confusion avec Cité administrative).
-- Code : Fonction Python + docstring générée, latence 5.0s.
-- Résumé : **ÉCHEC** — réponse en anglais malgré prompt français. Le modèle dérive parfois sur les tâches de reformulation.
-- Français : Message professionnel chaleureux/formel parfait, latence 1.9s.
+**Commande de redémarrage :**
+```bash
+docker compose up -d --force-recreate grafana
+```
 
-**Jugement :** Francophone très correct pour chat et rédaction. Le drift anglais sur le résumé est un biais connu des modèles Mistral entraînés majoritairement sur corpus anglais. Acceptable pour le prototype, à surveiller en production.
-
-## Notes de Transfert
-
-**Stack actuelle :**
-- vLLM (8000) → LiteLLM (4000) → Open WebUI (3000) → PostgreSQL (5433).
-- Prometheus (9090) + Grafana (3100) configurés, en attente de démarrage.
-- ngrok configuré, en attente de token et démarrage.
-- Mistral-7B : opérationnel, benchmarké, qualité validée (français natif acceptable).
-
-## 2026-05-04 : Commit Initial sur GitHub
-
-**Action :** Initialisation du dépôt Git et push sur `https://github.com/Hydra16LeGrand/ivorian_inference.git`.
-- `.gitignore` créé : exclut `.claude/`, `.env`, `venv/`.
-- 15 fichiers commités (architecture complète, benchmarks, docs).
-- Branche `main` poussée avec succès.
-
-## 2026-05-04 : Phase 6 - Implémentation Multimodal API
-
-**Décision :** LangGraph introduit dès le MVP pour préparer STT et embeddings (Phase 7).
-
-**Fichiers créés :**
-- `multimodal-api/Dockerfile` : image Python 3.11 slim, torch CPU-only.
-- `multimodal-api/requirements.txt` : transformers, qwen-vl-utils, langgraph, fastapi, httpx, pillow.
-- `multimodal-api/main.py` : FastAPI + LangGraph StateGraph avec nœuds `classify`, `process_vision`, `build_prompt`, `call_llm`.
-
-**Fichiers modifiés :**
-- `docker-compose.yml` : service `multimodal-api` ajouté (port 8001, CPU-only, dépend de vLLM).
-- `litellm/config.yaml` : modèle `multimodal-agent` routé vers `http://multimodal-api:8000/v1`.
-- `prometheus/prometheus.yml` : scrape job `multimodal-api` ajouté.
-
-**Architecture du graphe :**
-1. `classify` : détecte `image_url` ou texte pur dans le dernier message utilisateur.
-2. `process_vision` (conditionnel) : appel Qwen2-VL-2B sur CPU via `run_in_executor`, max 256 tokens.
-3. `build_prompt` : injecte l'analyse vision dans le dernier message user, préserve l'historique conversation.
-4. `call_llm` : proxy vers Mistral-7B sur GPU (vLLM), supporte streaming et non-streaming.
-
-**Prochaine étape :** Build du conteneur, test de chargement Qwen2-VL, validation end-to-end.
+**À valider après redémarrage :**
+- `http://127.0.0.1:3100` → login admin / password `.env GF_SECURITY_ADMIN_PASSWORD`
+- Dashboard "Inference Stack" visible directement dans "General"
+- 7 panels avec données (vLLM, LiteLLM, multimodal-api doivent être UP dans Prometheus).

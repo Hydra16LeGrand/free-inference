@@ -6,17 +6,17 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-litellm}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-litellm_password}
-      POSTGRES_DB: ${POSTGRES_DB:-litellm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     networks:
       - inference-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-litellm} -d ${POSTGRES_DB:-litellm}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-litellm} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -30,12 +30,14 @@ services:
     restart: unless-stopped
     environment:
       HF_TOKEN: ${HF_TOKEN:-}
-      VLLM_API_KEY: ${VLLM_API_KEY:-sk-vllm-local-secret}
+      VLLM_API_KEY: ${VLLM_API_KEY}
+      HF_HUB_ENABLE_XET: "False"
     volumes:
       - hf_cache:/root/.cache/huggingface
       - ./vllm/configs:/configs
+      - ./vllm_chat_template.jinja:/configs/chat_template.jinja:ro
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     networks:
       - inference-net
     deploy:
@@ -49,13 +51,15 @@ services:
     command: >
       --model solidrust/Mistral-7B-Instruct-v0.3-AWQ
       --quantization awq
-      --max-model-len 8192
+      --max-model-len 6144
       --gpu-memory-utilization 0.90
       --tensor-parallel-size 1
       --dtype half
       --enforce-eager
+      --max-num-seqs 1
       --enable-prefix-caching
-      --api-key ${VLLM_API_KEY:-sk-vllm-local-secret}
+      --chat-template /configs/chat_template.jinja
+      --api-key ${VLLM_API_KEY}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -73,13 +77,18 @@ services:
     environment:
       HF_TOKEN: ${HF_TOKEN:-}
       VLLM_URL: http://vllm:8000/v1/chat/completions
-      VLLM_API_KEY: ${VLLM_API_KEY:-sk-vllm-local-secret}
+      VLLM_HEALTH_URL: http://vllm:8000/health
+      VLLM_API_KEY: ${VLLM_API_KEY}
       TARGET_MODEL: solidrust/Mistral-7B-Instruct-v0.3-AWQ
-      VISION_MODEL: Qwen/Qwen2-VL-2B-Instruct
+      WHISPER_MODEL_SIZE: ${WHISPER_MODEL_SIZE:-small}
+      EMBED_MODEL: ${EMBED_MODEL:-BAAI/bge-m3}
+      MAX_BODY_SIZE_MB: "10"
+      HF_HUB_ENABLE_XET: "False"
     volumes:
       - hf_cache:/root/.cache/huggingface
+      - ./multimodal-api/main.py:/app/main.py:ro
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     networks:
       - inference-net
     depends_on:
@@ -98,14 +107,15 @@ services:
     container_name: inference-litellm
     restart: unless-stopped
     environment:
-      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-litellm-master-secret}
-      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY:-sk-litellm-salt-secret}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-litellm}:${POSTGRES_PASSWORD:-litellm_password}@postgres:5432/${POSTGRES_DB:-litellm}
-      VLLM_API_KEY: ${VLLM_API_KEY:-sk-vllm-local-secret}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-litellm}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      VLLM_API_KEY: ${VLLM_API_KEY}
+      STORE_MODEL_IN_DB: True
     volumes:
       - ./litellm/config.yaml:/app/config.yaml
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     networks:
       - inference-net
     depends_on:
@@ -121,23 +131,47 @@ services:
       start_period: 40s
     command: ["--config", "/app/config.yaml", "--port", "4000"]
 
-  # --- 4. Open WebUI ---
+  # --- 4. Open WebUI (Simplified Interface) ---
   open-webui:
     image: ghcr.io/open-webui/open-webui:v0.8.12
     container_name: inference-webui
     restart: unless-stopped
     environment:
-      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:-webui-secret-key-change-me}
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
       OPENAI_API_BASE_URL: http://litellm:4000
-      OPENAI_API_KEY: ${LITELLM_MASTER_KEY:-sk-litellm-master-secret}
+      OPENAI_API_KEY: ${LITELLM_MASTER_KEY}
       AIOHTTP_CLIENT_TIMEOUT: 360
       HF_TOKEN: ${HF_TOKEN:-}
       RAG_EMBEDDING_ENGINE: ""
       RAG_EMBEDDING_MODEL: ""
+      # --- Simplified UI ---
+      ENABLE_PERSISTENT_CONFIG: "False"
+      ENABLE_WEB_SEARCH: "False"
+      ENABLE_IMAGE_GENERATION: "False"
+      ENABLE_CODE_EXECUTION: "False"
+      ENABLE_CODE_INTERPRETER: "False"
+      ENABLE_AUTOMATIONS: "False"
+      ENABLE_CALENDAR: "False"
+      ENABLE_NOTES: "False"
+      ENABLE_MEMORIES: "False"
+      ENABLE_CHANNELS: "False"
+      ENABLE_API_KEYS: "False"
+      ENABLE_COMMUNITY_SHARING: "False"
+      ENABLE_EASTER_EGGS: "False"
+      ENABLE_TITLE_GENERATION: "False"
+      ENABLE_TAGS_GENERATION: "False"
+      ENABLE_FOLLOW_UP_GENERATION: "False"
+      ENABLE_AUTOCOMPLETE_GENERATION: "False"
+      USER_PERMISSIONS_CHAT_CONTROLS: "False"
+      USER_PERMISSIONS_CHAT_TEMPORARY: "False"
+      USER_PERMISSIONS_SETTINGS_INTERFACE: "False"
+      USER_PERMISSIONS_FEATURES_FOLDERS: "False"
+      WEBUI_NAME: "Ivoire Mind"
+      ENABLE_SIGNUP: "True"
     volumes:
       - open_webui_data:/app/backend/data
     ports:
-      - "3000:8080"
+      - "127.0.0.1:3000:8080"
     networks:
       - inference-net
     depends_on:
@@ -151,19 +185,26 @@ services:
       start_period: 300s
 
   # --- 5. Ngrok (Tunnel Sécurisé) ---
+  # Service optionnel : démarre uniquement avec --profile tunnel
+  # docker compose --profile tunnel up -d ngrok
   ngrok:
     image: ngrok/ngrok:3.37.3-alpine
     container_name: inference-ngrok
-    restart: unless-stopped
+    restart: "no"
+    profiles:
+      - tunnel
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+      NGROK_WEB_ADDR: 0.0.0.0:4040
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         EXTRA=""
         [ -n "$${NGROK_DOMAIN}" ] && EXTRA="$${EXTRA} --domain=$${NGROK_DOMAIN}"
         [ -n "$${NGROK_BASIC_AUTH}" ] && EXTRA="$${EXTRA} --basic-auth=$${NGROK_BASIC_AUTH}"
-        exec ngrok http open-webui:8080 $${EXTRA}
+        exec ngrok http litellm:4000 $${EXTRA}
+    ports:
+      - "127.0.0.1:4040:4040"
     networks:
       - inference-net
     depends_on:
@@ -178,7 +219,7 @@ services:
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     networks:
       - inference-net
     command:
@@ -195,13 +236,22 @@ services:
     restart: unless-stopped
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "3100:3000"
+      - "127.0.0.1:3100:3000"
     networks:
       - inference-net
+    depends_on:
+      prometheus:
+        condition: service_started
 
 volumes:
   postgres_data:
