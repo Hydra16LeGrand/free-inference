@@ -55,7 +55,7 @@ class ChatMessage(BaseModel):
     content: str | list[dict]
 
 class ChatCompletionRequest(BaseModel):
-    model: str = "base-mind"
+    model: str = "base-mind-multimodal"
     messages: list[ChatMessage]
     stream: bool = False
     max_tokens: Optional[int] = None
@@ -96,7 +96,7 @@ _SELF_INTRO_PATTERNS = [
     r"(?i)bien\s+sûr,?\s+je\s+suis\s+[^.!?]*[.!?]",
     r"(?i)oui,?\s+je\s+suis\s+[^.!?]*[.!?]",
     r"(?i)je\s+suis\s+base-mind[.!?]?",
-    r"(?i)je\s+suis\s+ivoire-mind[.!?]?",
+    r"(?i)je\s+suis\s+base-mind-multimodal[.!?]?",
 ]
 
 _ENGLISH_DRIFT_PATTERNS = [

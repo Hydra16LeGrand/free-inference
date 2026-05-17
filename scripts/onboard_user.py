@@ -15,8 +15,8 @@ def main():
     parser = argparse.ArgumentParser(description="Onboard a new user to Inference Stack")
     parser.add_argument("email", help="User email (used as user_id)")
     parser.add_argument("--role", default="internal_user", choices=["internal_user", "internal_user_viewer", "proxy_admin_viewer"], help="User role")
-    parser.add_argument("--models", default="ivoire-mind,base-mind,bge-m3", help="Comma-separated allowed models")
-    parser.add_argument("--budget", type=float, default=10.0, help="Monthly budget in USD")
+    parser.add_argument("--models", default="base-mind,base-mind-multimodal,bge-m3", help="Comma-separated allowed models")
+    parser.add_argument("--budget", type=float, default=10.0, help="Monthly budget in USD. Use 0 for unlimited.")
     parser.add_argument("--proxy-url", default="http://127.0.0.1:4000", help="LiteLLM proxy URL")
     args = parser.parse_args()
 
@@ -25,12 +25,13 @@ def main():
         print("ERROR: LITELLM_MASTER_KEY not set in environment.", file=sys.stderr)
         sys.exit(1)
 
+    budget = args.budget if args.budget > 0 else None
     payload = {
         "user_id": args.email,
         "user_email": args.email,
         "user_role": args.role,
         "models": args.models.split(","),
-        "max_budget": args.budget,
+        "max_budget": budget,
     }
 
     req = urllib.request.Request(
@@ -48,7 +49,7 @@ def main():
             data = json.loads(resp.read())
             print(f"User created successfully: {data.get('user_id')}")
             print(f"  Role: {args.role}")
-            print(f"  Budget: ${args.budget}/month")
+            print(f"  Budget: ${args.budget}/month" if budget else "  Budget: unlimited")
             print(f"  Models: {args.models}")
             print(f"  Login URL: {args.proxy_url}/ui")
             print("  Password will be set on first login.")

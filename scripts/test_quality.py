@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test qualité robuste : vérifie l'absence de charabia, le français dominant,
-et la cohérence sur ivoire-mind et base-mind via LiteLLM.
+et la cohérence sur base-mind et base-mind-multimodal via LiteLLM.
 Usage : source .env && python scripts/test_quality.py
 """
 
@@ -175,7 +175,7 @@ def check_coherence(task: str, prompt: str, text: str) -> tuple[bool, str]:
 
 def check_self_intro(text: str) -> tuple[bool, str]:
     lower = text.lower()
-    bad = ["je suis", "je m'appelle", "ivoire-mind", "base-mind", "assistant", "ia ", "intelligence artificielle", "un modèle"]
+    bad = ["je suis", "je m'appelle", "base-mind-multimodal", "base-mind-multimodal", "assistant", "ia ", "intelligence artificielle", "un modèle"]
     for b in bad:
         if b in lower:
             return False, f"Auto-présentation détectée : '{b}'"
@@ -187,7 +187,7 @@ def main():
         print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
         sys.exit(1)
 
-    models = ["ivoire-mind", "base-mind"]
+    models = ["base-mind-multimodal", "base-mind-multimodal"]
     all_ok = True
 
     print("=" * 70)

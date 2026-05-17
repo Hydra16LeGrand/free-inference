@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Suite de test complète pour ivoire-mind et base-mind.
+Suite de test complète pour base-mind et base-mind-multimodal.
 Objectif : garantir une expérience dev/playground sans surprises.
 
 Catégories testées :
@@ -206,8 +206,8 @@ def no_self_intro(text: str) -> tuple[bool, str]:
     patterns = [
         r"je\s+suis",
         r"je\s+m'appelle",
-        r"ivoire-mind",
-        r"base-mind",
+        r"base-mind-multimodal",
+        r"base-mind-multimodal",
         r"assistant\s+virtuel",
         r"intelligence\s+artificielle",
         r"un\s+modèle",
@@ -510,7 +510,7 @@ def main():
         sys.exit(1)
 
     all_pass = True
-    for model in ["ivoire-mind", "base-mind"]:
+    for model in ["base-mind-multimodal", "base-mind-multimodal"]:
         results = run_tests(model)
         ok = display(results, model)
         if not ok:

@@ -4,7 +4,7 @@
 
 **Problème constaté :** La suite de tests `scripts/test_full_suite.py` affichait 17/19, puis 18/19, avec deux échecs persistants :
 1. `base-mind` B5 (résumé) → réponse remplacée par `"Salut."` à cause d'une détection de salutation trop laxiste.
-2. `ivoire-mind` D1 (prompt vide) → auto-présentation car le template Jinja n'avait pas d'exemple pour message vide.
+2. `base-mind` D1 (prompt vide) → auto-présentation car le template Jinja n'avait pas d'exemple pour message vide.
 
 **Racine :**
 1. Le post-processor `multimodal-api/main.py` utilisait `any(w in lower_user for w in _SALUTATION_KEYWORDS)`. Le mot-clé `"hi"` matchait en sous-chaîne dans `"machine"`, `"chimique"`, etc., déclenchant à tort le raccourcissement forcé.
@@ -14,11 +14,11 @@
 1. Remplacement de la détection naïve par une regex avec word-boundaries : `_SALUTATION_RE = re.compile(r"(?i)\b(salut|bonjour|coucou|hey|hello|hi)\b")`.
 2. Ajout d'un exemple vide dans le template Jinja : `Question='' -> Réponse='Je n'ai pas compris.'`.
 
-**Résultat :** Suite complète relancée → **19/19 passés** pour `ivoire-mind` et `base-mind`. Les devs utilisant l'API LiteLLM (port 4000) ou le playground Open WebUI ont maintenant une expérience prévisible et contrôlée.
+**Résultat :** Suite complète relancée → **19/19 passés** pour `base-mind` et `base-mind-multimodal`. Les devs utilisant l'API LiteLLM (port 4000) ou le playground Open WebUI ont maintenant une expérience prévisible et contrôlée.
 
 ## 2026-05-09 — Phase 6.5 : Correction Template Jinja (Charabia & Drift Anglais)
 
-**Problème constaté :** `ivoire-mind` génère du charabia, `base-mind` dérive en anglais sur le playground Open WebUI.
+**Problème constaté :** `base-mind` génère du charabia, `base-mind-multimodal` dérive en anglais sur le playground Open WebUI.
 
 **Racine :** Le template Jinja `vllm_chat_template.jinja` était truffé d'espaces et sauts de ligne hors des balises Jinja. Ces whitespaces sont rendus littéralement dans le prompt final et tokenisés comme du bruit par vLLM. Sur un prompt court le modèle compensait, sur des conversations multi-turn ou des prompts riches il déraillait complètement.
 
@@ -40,7 +40,7 @@ Puis exécuter `python scripts/test_quality.py`.
 
 **Solution :**
 1. **Prompt système affirmatif et structuré** dans `vllm_chat_template.jinja` et `multimodal-api/main.py`. 5 règles numérotées positives : "Réponds directement", "Sois concis", "Ne dis jamais...".
-2. **`temperature: 0.2`** et **`max_tokens: 256`** forçés par défaut dans `litellm/config.yaml` (ivoire-mind) et dans `multimodal-api/main.py` (base-mind). Le client peut override, mais la baseline est stricte.
+2. **`temperature: 0.2`** et **`max_tokens: 256`** forçés par défaut dans `litellm/config.yaml` (`base-mind`) et dans `multimodal-api/main.py` (`base-mind-multimodal`). Le client peut override, mais la baseline est stricte.
 
 **Commandes de redémarrage nécessaires :**
 ```bash

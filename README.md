@@ -1,17 +1,17 @@
-# Inference Stack - Plateforme d'Inference LLM Multimodale (Local)
+# Free Inference — Stack d'Inférence LLM Multimodale 100% Locale
 
 ## Vue d'ensemble
 
-Plateforme d'inférence LLM **100% locale** pour le marché ivoirien.
+Plateforme d'inférence LLM **open source** et **100% locale** pour le chat, la vision, la voix et l'OCR.
 
 **Matériel requis :**
-- GPU NVIDIA 12 Go VRAM (RTX 4080/3080 Ti ou supérieur)
-- CPU 32 Go RAM minimum
+- GPU NVIDIA 12 Go VRAM (RTX 4080/3080 Ti ou équivalent)
+- CPU 32 Go RAM minimum (24 Go si allégé)
 - Docker + NVIDIA Container Toolkit
 
 **Stack :**
 - **vLLM** : Moteur d'inférence GPU (Mistral-7B-Instruct-v0.3-AWQ)
-- **LiteLLM Proxy** : Gateway de routage, tracking de tokens, quotas
+- **LiteLLM Proxy** : Gateway de routage, tracking de tokens, quotas, auth
 - **PostgreSQL** : Persistance des logs de consommation
 - **Open WebUI** : Interface utilisateur
 - **LangGraph** : Orchestrateur multimodal (texte + image + voix)
@@ -30,23 +30,30 @@ Internet → ngrok → Open WebUI (3000)
                           ↓
               ┌───────────┴───────────┐
               ↓                       ↓
-       Mistral-7B (GPU)      multimodal-api (CPU)
-       12 Go VRAM            32 Go RAM
+       base-mind (GPU)      base-mind-multimodal (CPU)
        Chat / Génération     Orchestrateur LangGraph
+       12 Go VRAM            32 Go RAM
                                    ↓
                             ┌─────┴─────┐
                             ↓           ↓
-                     Mistral-7B     Qwen2-VL-2B
-                     (GPU)         (CPU, Vision+OCR)
+                     base-mind      DocTR OCR
+                     (GPU)           (CPU, OCR)
+                            ↑           ↑
+                            └─────┬─────┘
+                                  ↓
+                           faster-whisper (CPU, STT)
+                                  ↓
+                              bge-m3 (CPU)
+                              Embeddings / RAG
 ```
 
 **Workflow multimodal :**
 1. User envoie texte + image via Open WebUI.
 2. LangGraph détecte le type de contenu.
-3. Texte → Mistral-7B (GPU) pour la réponse.
-4. Image → Qwen2-VL-2B (CPU) pour OCR/description.
+3. Texte → `base-mind` (GPU) pour la réponse.
+4. Image → DocTR OCR / Qwen2-VL-2B (CPU) pour extraction/description.
 5. LangGraph fusionne les résultats et retourne une réponse unifiée au format OpenAI.
-6. LiteLLM expose le modèle `multimodal-agent` comme n'importe quel modèle LLM.
+6. LiteLLM expose le modèle `base-mind-multimodal` comme n'importe quel modèle LLM.
 
 ## Quick Start
 
@@ -71,6 +78,14 @@ Internet → ngrok → Open WebUI (3000)
    - Grafana : `http://localhost:3100`
    - Prometheus : `http://localhost:9090`
 
+## Modèles exposés
+
+| Modèle LiteLLM | Backend | Rôle |
+|---|---|---|
+| `base-mind` | vLLM (GPU) | Chat texte pur, rapide, concis en français |
+| `base-mind-multimodal` | multimodal-api (CPU+GPU) | OCR + STT + vision + texte |
+| `bge-m3` | multimodal-api (CPU) | Embeddings multilingues |
+
 ## Ajouter un Modèle
 
 ### Remplacer Mistral-7B par un autre modèle GPU
@@ -92,7 +107,7 @@ Internet → ngrok → Open WebUI (3000)
 2. **Modifier `litellm/config.yaml` :**
    ```yaml
    model_list:
-     - model_name: solidrust/Mistral-7B-Instruct-v0.3-AWQ
+     - model_name: base-mind
        litellm_params:
          model: hosted_vllm/solidrust/Mistral-7B-Instruct-v0.3-AWQ
          api_base: http://vllm:8000/v1
@@ -165,6 +180,13 @@ python3 scripts/benchmark_pipeline.py
 
 Mesure : overhead ajouté par LiteLLM Proxy vs accès direct vLLM.
 
+### Tests qualité
+
+```bash
+source .env && python scripts/test_quality.py
+source .env && python scripts/test_full_suite.py
+```
+
 ## Sécurisation pour Accès Internet (ngrok)
 
 1. **Configurer `.env` :**
@@ -176,7 +198,7 @@ Mesure : overhead ajouté par LiteLLM Proxy vs accès direct vLLM.
 
 2. **Démarrer ngrok :**
    ```bash
-   docker compose up -d ngrok
+   docker compose --profile tunnel up -d ngrok
    ```
 
 3. **Récupérer l'URL :**
@@ -192,14 +214,16 @@ Mesure : overhead ajouté par LiteLLM Proxy vs accès direct vLLM.
 2. **WEBUI_SECRET_KEY faible** : Remplacer par une chaîne aléatoire forte.
 3. **Rate-limiting** : Ajouter Nginx/Traefik devant ngrok.
 4. **Backup PostgreSQL** : `pg_dump` automatisé.
+5. **Alertes Prometheus** : Configurer Alertmanager (VRAM > 95%, latence > 2s).
 
 ## Roadmap
 
 1. **Phase 5 :** ngrok + sécurisation des secrets.
 2. **Phase 6 :** Multimodal LangGraph (Qwen2-VL-2B CPU).
 3. **Phase 7 :** faster-whisper (STT), OCR, bge-m3 (Embedding).
-4. **Phase 8 :** Optimisation KV cache, production-ready.
+4. **Phase 8 :** RAG avec vector store (ChromaDB / pgvector).
+5. **Phase 9 :** Optimisation KV cache, production-ready.
 
 ## Licence
 
-Projet interne - Tous droits réservés.
+MIT License — voir [LICENSE](LICENSE).

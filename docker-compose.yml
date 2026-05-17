@@ -111,7 +111,6 @@ services:
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
       DATABASE_URL: postgresql://${POSTGRES_USER:-litellm}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       VLLM_API_KEY: ${VLLM_API_KEY}
-      STORE_MODEL_IN_DB: True
     volumes:
       - ./litellm/config.yaml:/app/config.yaml
     ports:
@@ -166,7 +165,7 @@ services:
       USER_PERMISSIONS_CHAT_TEMPORARY: "False"
       USER_PERMISSIONS_SETTINGS_INTERFACE: "False"
       USER_PERMISSIONS_FEATURES_FOLDERS: "False"
-      WEBUI_NAME: "Ivoire Mind"
+      WEBUI_NAME: "Base Mind"
       ENABLE_SIGNUP: "True"
     volumes:
       - open_webui_data:/app/backend/data
@@ -208,7 +207,7 @@ services:
     networks:
       - inference-net
     depends_on:
-      open-webui:
+      litellm:
         condition: service_healthy
 
   # --- 6. Prometheus ---

@@ -51,8 +51,8 @@
 - [x] Robustesse multimodal : connection pool, validation Pydantic, CORS, healthcheck downstream, limite payload (PR B).
 - [x] Optimisation performance : `--max-num-seqs 1`, batch writes LiteLLM, rate limiting, scripts corrigés (PR C).
 
-## Phase 6.5 : Prompt Système Expert Ivoirien pour `ivoire-mind`
-**Objectif :** Définir, tester et valider un prompt système robuste qui transforme `ivoire-mind` en assistant expert contextualisé pour la Côte d'Ivoire, sans RAG ni web search (pré-RAG).
+## Phase 6.5 : Prompt Système Expert Ivoirien pour `base-mind`
+**Objectif :** Définir, tester et valider un prompt système robuste qui transforme `base-mind` en assistant expert contextualisé pour la Côte d'Ivoire, sans RAG ni web search (pré-RAG).
 
 **Tâches :**
 - [x] Rechercher les best practices pour les system prompts sur Mistral-7B (compliance, anti-hallucination, structure).
@@ -63,13 +63,13 @@
 - [x] Tester la qualité : français, ton, connaissances locales, refus poli hors-scope.
   - [x] Diagnostiquer et corriger le template Jinja (espaces parasites causant charabia/drift anglais).
   - [x] Durcir prompt système (affirmatif/structuré) et forcer temperature=0.2 + max_tokens=256 via LiteLLM et multimodal-api.
-  - [x] Créer et exécuter `scripts/test_full_suite.py` (19 tests par modèle) → **19/19 passés** pour `ivoire-mind` et `base-mind`.
+  - [x] Créer et exécuter `scripts/test_full_suite.py` (19 tests par modèle) → **19/19 passés** pour `base-mind` et `base-mind`.
 - [x] Documenter les limites constatées (drift anglais, hallus, etc.) dans PROGRESS.md.
 
-**Architecture cible `ivoire-mind` vs `base-mind` :**
-- `ivoire-mind` : Chat texte pur, GPU direct (vLLM). Prompt système expert ivoirien. Rapide.
-- `base-mind` : Multimodal (OCR + STT + texte), CPU+GPU via LangGraph. Réutilise `ivoire-mind` en aval pour la génération.
-- `ivoire-mind-search` : **Futur** (Phase 9). Intègre web search + prompt système. Sera un modèle séparé dans LiteLLM.
+**Architecture cible `base-mind` vs `base-mind` :**
+- `base-mind` : Chat texte pur, GPU direct (vLLM). Prompt système expert ivoirien. Rapide.
+- `base-mind-multimodal` : Multimodal (OCR + STT + texte), CPU+GPU via LangGraph. Réutilise `base-mind` en aval pour la génération.
+- `base-mind-search` : **Futur** (Phase 9). Intègre web search + prompt système. Sera un modèle séparé dans LiteLLM.
 
 ## Phase 7 : N'Zassa Booster — RAG Expert Local
 **Concept :** Transforme le modèle `multimodal-agent` en un assistant expert contextualisé. Pas de fine-tuning. Un prompt système solide + récupération de documents locaux via bge-m3.
