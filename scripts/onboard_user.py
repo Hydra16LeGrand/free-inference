@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Onboarding script for Inference Stack users.
+Onboarding script for Free Inference users.
 Admin-only : creates an internal user in LiteLLM so they can self-serve
 API keys via the Admin UI (/ui) or programmatically.
 """
@@ -12,7 +12,7 @@ import json
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Onboard a new user to Inference Stack")
+    parser = argparse.ArgumentParser(description="Onboard a new user to Free Inference")
     parser.add_argument("email", help="User email (used as user_id)")
     parser.add_argument("--role", default="internal_user", choices=["internal_user", "internal_user_viewer", "proxy_admin_viewer"], help="User role")
     parser.add_argument("--models", default="base-mind,bge-m3", help="Comma-separated allowed models")

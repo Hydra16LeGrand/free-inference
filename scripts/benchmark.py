@@ -114,7 +114,7 @@ def main():
         print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
         sys.exit(1)
 
-    print("Benchmark Inference Stack — base-mind")
+    print("Benchmark Free Inference — base-mind")
     print(f"Endpoint : {LITELLM_URL}")
 
     # 1. Warm-up (single request)

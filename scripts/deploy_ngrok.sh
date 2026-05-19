@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-echo "=== Déploiement ngrok (Inference Stack) ==="
+echo "=== Déploiement ngrok (Free Inference) ==="
 
 # Vérifier que NGROK_AUTHTOKEN est présent
 if [ -z "${NGROK_AUTHTOKEN:-}" ]; then

@@ -352,7 +352,7 @@
   "time": {"from": "now-1h", "to": "now"},
   "timepicker": {},
   "timezone": "",
-  "title": "Inference Stack",
+  "title": "Free Inference",
   "uid": "inference-stack",
   "version": 1
 }
