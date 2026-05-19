@@ -510,7 +510,7 @@ def main():
         sys.exit(1)
 
     all_pass = True
-    for model in ["base-mind-multimodal", "base-mind-multimodal"]:
+    for model in ["base-mind", "base-mind"]:
         results = run_tests(model)
         ok = display(results, model)
         if not ok:

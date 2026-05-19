@@ -187,7 +187,7 @@ def main():
         print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
         sys.exit(1)
 
-    models = ["base-mind-multimodal", "base-mind-multimodal"]
+    models = ["base-mind", "base-mind"]
     all_ok = True
 
     print("=" * 70)

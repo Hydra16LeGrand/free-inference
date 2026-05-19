@@ -57,7 +57,7 @@ def main():
             budget = float(sys.argv[idx + 1])
 
     # Modèles par défaut accessibles
-    models = ["base-mind", "base-mind-multimodal", "bge-m3"]
+    models = ["base-mind", "bge-m3"]
 
     result = generate_key(user_id, models, budget)
     if "error" in result:

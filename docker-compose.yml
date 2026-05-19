@@ -50,20 +50,6 @@ services:
       VLLM_MODEL: ${VLLM_MODEL:-solidrust/Mistral-7B-Instruct-v0.3-AWQ}
       VLLM_QUANTIZATION: ${VLLM_QUANTIZATION:-awq}
       VLLM_MAX_MODEL_LEN: ${VLLM_MAX_MODEL_LEN:-6144}
-    entrypoint: ["/bin/sh", "-c"]
-    command: >
-      exec python3 -m vllm.entrypoints.openai.api_server
-      --model "$${VLLM_MODEL}"
-      --quantization "$${VLLM_QUANTIZATION}"
-      --max-model-len "$${VLLM_MAX_MODEL_LEN}"
-      --gpu-memory-utilization 0.90
-      --tensor-parallel-size 1
-      --dtype half
-      --enforce-eager
-      --max-num-seqs 1
-      --enable-prefix-caching
-      --chat-template /configs/chat_template.jinja
-      --api-key "$${VLLM_API_KEY}"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

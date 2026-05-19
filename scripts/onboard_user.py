@@ -15,7 +15,7 @@ def main():
     parser = argparse.ArgumentParser(description="Onboard a new user to Inference Stack")
     parser.add_argument("email", help="User email (used as user_id)")
     parser.add_argument("--role", default="internal_user", choices=["internal_user", "internal_user_viewer", "proxy_admin_viewer"], help="User role")
-    parser.add_argument("--models", default="base-mind,base-mind-multimodal,bge-m3", help="Comma-separated allowed models")
+    parser.add_argument("--models", default="base-mind,bge-m3", help="Comma-separated allowed models")
     parser.add_argument("--budget", type=float, default=10.0, help="Monthly budget in USD. Use 0 for unlimited.")
     parser.add_argument("--proxy-url", default="http://127.0.0.1:4000", help="LiteLLM proxy URL")
     args = parser.parse_args()

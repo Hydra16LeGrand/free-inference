@@ -55,7 +55,7 @@ class ChatMessage(BaseModel):
     content: str | list[dict]
 
 class ChatCompletionRequest(BaseModel):
-    model: str = "base-mind-multimodal"
+    model: str = "base-mind"
     messages: list[ChatMessage]
     stream: bool = False
     max_tokens: Optional[int] = None
@@ -147,7 +147,30 @@ def _post_process_response(data: dict, last_user_text: str) -> dict:
     return data
 
 
-# --- Content Extraction ---
+def _sanitize_messages_for_vllm(messages: List[dict]) -> List[dict]:
+    """Replace multimodal parts (image_url, audio_url) with text placeholders
+    so vLLM (Mistral-7B) never receives binary content it cannot parse."""
+    sanitized = []
+    for msg in messages:
+        content = msg.get("content", "")
+        if isinstance(content, list):
+            texts = []
+            for part in content:
+                ptype = part.get("type", "")
+                if ptype == "text":
+                    t = part.get("text", "")
+                    if t:
+                        texts.append(t)
+                elif ptype == "image_url":
+                    texts.append("[Image]")
+                elif ptype == "audio_url":
+                    texts.append("[Audio]")
+            new_msg = dict(msg)
+            new_msg["content"] = "\n".join(texts) if texts else ""
+            sanitized.append(new_msg)
+        else:
+            sanitized.append(msg)
+    return sanitized
 def _extract_content(messages: List[dict]):
     user_texts = []
     images = []
@@ -405,6 +428,9 @@ async def chat_completions(body: ChatCompletionRequest, request: Request):
             if isinstance(content, str):
                 last_user_text = content.strip().lower()
             break
+
+    # Ensure vLLM never receives image/audio URLs (it only supports text)
+    messages = _sanitize_messages_for_vllm(messages)
 
     llm_payload = {
         "model": TARGET_MODEL,

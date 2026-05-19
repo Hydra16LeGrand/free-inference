@@ -6,21 +6,13 @@ model_list:
   # --- Chat / Completion Models ---
   - model_name: base-mind
     litellm_params:
-      model: hosted_vllm/solidrust/Mistral-7B-Instruct-v0.3-AWQ
-      api_base: http://vllm:8000/v1
+      model: openai/base-mind
+      api_base: http://multimodal-api:8000/v1
       api_key: os.environ/VLLM_API_KEY
       temperature: 0.2
       max_tokens: 256
       rpm_limit: 60
       tpm_limit: 100000
-
-  - model_name: base-mind-multimodal
-    litellm_params:
-      model: openai/base-mind-multimodal
-      api_base: http://multimodal-api:8000/v1
-      api_key: os.environ/VLLM_API_KEY
-      rpm_limit: 30
-      tpm_limit: 50000
 
   # --- Embedding Models ---
   - model_name: bge-m3
@@ -41,7 +33,7 @@ general_settings:
   internal_user_budget_duration: "1mo"
   default_internal_user_params:
     user_role: "internal_user"
-    models: ["base-mind", "base-mind-multimodal", "bge-m3"]
+    models: ["base-mind", "bge-m3"]
   key_generation_settings:
     personal_key_generation:
       allowed_user_roles: ["internal_user", "proxy_admin"]
