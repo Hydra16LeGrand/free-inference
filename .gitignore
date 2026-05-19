@@ -26,6 +26,13 @@ Thumbs.db
 # Logs
 *.log
 
+# Données locales / backups
+backups/
+postgres_data/
+open_webui_data/
+grafana_data/
+hf_cache/
+
 API_USAGE.md
 
 CLAUDE.md

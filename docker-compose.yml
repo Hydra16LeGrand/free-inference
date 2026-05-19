@@ -4,6 +4,11 @@ services:
     image: postgres:16-alpine
     container_name: inference-postgres
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-litellm}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -28,6 +33,11 @@ services:
       dockerfile: Dockerfile
     container_name: inference-vllm
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - hf_cache:/root/.cache/huggingface
       - ./vllm/configs:/configs
@@ -64,6 +74,11 @@ services:
       dockerfile: Dockerfile
     container_name: inference-multimodal-api
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       HF_TOKEN: ${HF_TOKEN:-}
       VLLM_URL: http://vllm:8000/v1/chat/completions
@@ -96,6 +111,11 @@ services:
     image: ghcr.io/berriai/litellm:v1.83.7-stable
     container_name: inference-litellm
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
@@ -125,6 +145,11 @@ services:
     image: ghcr.io/open-webui/open-webui:v0.8.12
     container_name: inference-webui
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
       OPENAI_API_BASE_URL: http://litellm:4000
@@ -180,6 +205,11 @@ services:
     image: ngrok/ngrok:3.37.3-alpine
     container_name: inference-ngrok
     restart: "no"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     profiles:
       - tunnel
     environment:
@@ -205,6 +235,11 @@ services:
     image: prom/prometheus:v3.2.1
     container_name: inference-prometheus
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
@@ -223,6 +258,11 @@ services:
     image: grafana/grafana:11.6.0
     container_name: inference-grafana
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
