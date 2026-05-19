@@ -23,7 +23,7 @@ logger = logging.getLogger("multimodal-api")
 # --- Config ---
 VLLM_URL = os.environ["VLLM_URL"]
 VLLM_API_KEY = os.environ["VLLM_API_KEY"]
-TARGET_MODEL = os.environ.get("TARGET_MODEL", "solidrust/Mistral-7B-Instruct-v0.3-AWQ")
+TARGET_MODEL = os.environ.get("TARGET_MODEL") or os.environ.get("VLLM_MODEL", "solidrust/Mistral-7B-Instruct-v0.3-AWQ")
 WHISPER_MODEL_SIZE = os.environ.get("WHISPER_MODEL_SIZE", "small")
 EMBED_MODEL_NAME = os.environ.get("EMBED_MODEL", "BAAI/bge-m3")
 VLLM_HEALTH_URL = os.environ.get("VLLM_HEALTH_URL", "http://vllm:8000/health")

@@ -208,6 +208,37 @@ source .env && python scripts/test_full_suite.py
 
 4. **Accès :** `https://xxx.ngrok-free.app` (login/password demandé).
 
+## Changer de Modèle LLM
+
+Toute la configuration du modèle principal passe par `.env` :
+
+| Variable | Description | Exemple |
+|----------|-------------|---------|
+| `VLLM_MODEL` | HuggingFace ID du modèle | `solidrust/Mistral-7B-Instruct-v0.3-AWQ` |
+| `VLLM_QUANTIZATION` | Type de quantification | `awq`, `gptq`, `none` |
+| `VLLM_MAX_MODEL_LEN` | Taille max de contexte | `6144` |
+| `WHISPER_MODEL_SIZE` | Taille du modèle STT | `small`, `medium`, `large` |
+| `EMBED_MODEL` | Modèle d'embeddings | `BAAI/bge-m3` |
+
+**Procédure (3 étapes) :**
+
+1. **Modifier `.env` :**
+   ```bash
+   VLLM_MODEL=meta-llama/Meta-Llama-3-8B-Instruct
+   VLLM_QUANTIZATION=none
+   VLLM_MAX_MODEL_LEN=8192
+   ```
+
+2. **Adapter le template Jinja** (`vllm_chat_template.jinja`) :
+   Le template de chat est spécifique au format de chaque modèle (Mistral utilise `[INST]...[/INST]`, Llama-3 utilise un format différent). Placez le template correspondant à la racine du projet sous le nom `vllm_chat_template.jinja`.
+
+3. **Relancer vLLM :**
+   ```bash
+   docker compose up -d --force-recreate vllm litellm
+   ```
+
+**Note :** `litellm/config.yaml` expose les modèles via des alias (`base-mind`, `base-mind-multimodal`). Quand vous changez le modèle backend, vous n'avez pas besoin de modifier les alias — seule la ligne `model:` sous `base-mind` doit correspondre au nouveau modèle.
+
 ## Dettes Techniques (À résoudre)
 
 1. **Secrets avec fallback** : Supprimer `${VAR:-default}` dans `docker-compose.yml`.

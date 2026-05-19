@@ -28,10 +28,6 @@ services:
       dockerfile: Dockerfile
     container_name: inference-vllm
     restart: unless-stopped
-    environment:
-      HF_TOKEN: ${HF_TOKEN:-}
-      VLLM_API_KEY: ${VLLM_API_KEY}
-      HF_HUB_ENABLE_XET: "False"
     volumes:
       - hf_cache:/root/.cache/huggingface
       - ./vllm/configs:/configs
@@ -47,11 +43,19 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    # Commande de lancement optimisée pour 12 Go VRAM avec pull HuggingFace
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      VLLM_API_KEY: ${VLLM_API_KEY}
+      HF_HUB_ENABLE_XET: "False"
+      VLLM_MODEL: ${VLLM_MODEL:-solidrust/Mistral-7B-Instruct-v0.3-AWQ}
+      VLLM_QUANTIZATION: ${VLLM_QUANTIZATION:-awq}
+      VLLM_MAX_MODEL_LEN: ${VLLM_MAX_MODEL_LEN:-6144}
+    entrypoint: ["/bin/sh", "-c"]
     command: >
-      --model solidrust/Mistral-7B-Instruct-v0.3-AWQ
-      --quantization awq
-      --max-model-len 6144
+      exec python3 -m vllm.entrypoints.openai.api_server
+      --model "$${VLLM_MODEL}"
+      --quantization "$${VLLM_QUANTIZATION}"
+      --max-model-len "$${VLLM_MAX_MODEL_LEN}"
       --gpu-memory-utilization 0.90
       --tensor-parallel-size 1
       --dtype half
@@ -59,7 +63,7 @@ services:
       --max-num-seqs 1
       --enable-prefix-caching
       --chat-template /configs/chat_template.jinja
-      --api-key ${VLLM_API_KEY}
+      --api-key "$${VLLM_API_KEY}"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -79,7 +83,7 @@ services:
       VLLM_URL: http://vllm:8000/v1/chat/completions
       VLLM_HEALTH_URL: http://vllm:8000/health
       VLLM_API_KEY: ${VLLM_API_KEY}
-      TARGET_MODEL: solidrust/Mistral-7B-Instruct-v0.3-AWQ
+      TARGET_MODEL: ${VLLM_MODEL:-solidrust/Mistral-7B-Instruct-v0.3-AWQ}
       WHISPER_MODEL_SIZE: ${WHISPER_MODEL_SIZE:-small}
       EMBED_MODEL: ${EMBED_MODEL:-BAAI/bge-m3}
       MAX_BODY_SIZE_MB: "10"
