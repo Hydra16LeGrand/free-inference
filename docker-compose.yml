@@ -282,6 +282,49 @@ services:
       prometheus:
         condition: service_started
 
+  # --- 8. Nginx Reverse Proxy ---
+  nginx:
+    image: nginx:alpine
+    container_name: inference-nginx
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    ports:
+      - "80:80"
+    environment:
+      DOMAIN: ${DOMAIN:-tondomaine.com}
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/entrypoint.sh:/entrypoint.sh:ro
+      - ./landing:/usr/share/nginx/html/landing:ro
+    networks:
+      - inference-net
+    depends_on:
+      - open-webui
+      - litellm
+      - grafana
+
+  # --- 9. Cloudflare Tunnel ---
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: inference-cloudflared
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - inference-net
+    depends_on:
+      - nginx
+
 volumes:
   postgres_data:
   open_webui_data:
